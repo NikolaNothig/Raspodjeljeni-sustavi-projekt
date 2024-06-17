@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 app = FastAPI()
 
 def scrape_page(url):
+    title = "Sancta Domenica"
     response = requests.get(url)
     soup = BeautifulSoup(response.content, "html.parser")
     
