@@ -1,4 +1,3 @@
-# scraper3.py
 from celery_worker import app
 from fastapi import FastAPI
 import requests
@@ -7,6 +6,7 @@ from bs4 import BeautifulSoup
 app_scraper3 = FastAPI()
 
 def scrape_page(url):
+    title = "Svijet Medija"
     response = requests.get(url)
     if response.status_code != 200:
         print(f"Failed to retrieve page {url}")

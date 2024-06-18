@@ -1,6 +1,5 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 from scraper1 import scrape1
 from scraper2 import scrape2
 from scraper3 import scrape3
@@ -8,6 +7,7 @@ from celery.result import AsyncResult
 import logging
 import pymongo
 import asyncio
+import httpx
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -16,11 +16,10 @@ templates = Jinja2Templates(directory="templates")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# MongoDB client setup
 mongoclient = pymongo.MongoClient(
     "mongodb+srv://nnothig:12345@data.mfmvqb8.mongodb.net/?retryWrites=true&w=majority&appName=Data"
 )
-db = mongoclient["Baza_artikala"]  
+db = mongoclient["Baza_artikala"]
 Artikli = db["Artikli"]
 
 @app.get("/")
@@ -56,6 +55,10 @@ async def wait_for_tasks(task_ids):
 
 @app.post("/scrape_all")
 async def scrape_all(background_tasks: BackgroundTasks):
+    async with httpx.AsyncClient() as client:
+        response = await client.delete('http://localhost:8004/clear_data')
+        logger.info(f"Cleared data: {response.json()['message']}")
+
     scraper1_tasks = create_scraper_tasks(scrape1, 1, 50)
     scraper2_tasks = create_scraper_tasks(scrape2, 1, 50)
     scraper3_tasks = create_scraper_tasks(scrape3, 1, 100)
@@ -66,10 +69,9 @@ async def scrape_all(background_tasks: BackgroundTasks):
 async def save_results_to_mongo(task_ids):
     all_results = await wait_for_tasks(task_ids)
     if all_results:
-        # Save results to MongoDB
         result = Artikli.insert_many(all_results)
         logger.info(f"Data saved to MongoDB. Inserted IDs: {result.inserted_ids}")
     else:
         logger.warning("No results to save to MongoDB.")
 
-# Running the server with: uvicorn main:app --reload --port 8000
+# uvicorn main:app --reload --port 8000

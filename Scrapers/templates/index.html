@@ -11,24 +11,35 @@
             });
             const result = await response.json();
             alert(result.message);
+            loadData();
+        }
+
+        function parsePrice(price) {
+
+            return parseFloat(price.replace('.', '').replace(',', '.').replace('€', ''));
         }
 
         async function loadData() {
             try {
-                const response = await fetch('http://localhost:8004/get_data');  // Change to correct URL
+                const response = await fetch('http://localhost:8004/get_data');
                 const result = await response.json();
                 const dataContainer = document.getElementById('data-container');
-                dataContainer.innerHTML = '';  // Clear previous content
+                dataContainer.innerHTML = '';
 
-                // Check if data is received correctly
                 console.log('Received data:', result);
 
-                if (result.data && result.data.length > 0) {
-                    // Create table element
+                let data = result.data;
+                const sortOption = document.getElementById('sort-option').value;
+                if (sortOption === 'price-desc') {
+                    data = data.sort((a, b) => parsePrice(b.new_price) - parsePrice(a.new_price));
+                } else if (sortOption === 'price-asc') {
+                    data = data.sort((a, b) => parsePrice(a.new_price) - parsePrice(b.new_price));
+                }
+
+                if (data && data.length > 0) {
                     const table = document.createElement('table');
                     table.border = '1';
 
-                    // Create table header
                     const header = table.createTHead();
                     const headerRow = header.insertRow();
                     const headers = ['IME', 'STARA CIJENA', 'AKCIJSKA CIJENA'];
@@ -38,9 +49,8 @@
                         headerRow.appendChild(th);
                     });
 
-                    // Create table body
                     const tbody = table.createTBody();
-                    result.data.forEach(item => {
+                    data.forEach(item => {
                         const row = tbody.insertRow();
                         const nameCell = row.insertCell();
                         nameCell.textContent = item.name;
@@ -65,6 +75,11 @@
     <h1>Scraper UI</h1>
     <button onclick="startScraping()">Start Scrapers</button>
     <button onclick="loadData()">Load Data</button>
+    <select id="sort-option" onchange="loadData()">
+        <option value="">Sortiraj po...</option>
+        <option value="price-desc">Akcijska cijena (visoka prema niskoj)</option>
+        <option value="price-asc">Akcijska cijena (niska prema visokoj)</option>
+    </select>
     <div id="data-container"></div>
 </body>
 </html>

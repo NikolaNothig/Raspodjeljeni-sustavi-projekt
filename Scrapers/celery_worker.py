@@ -1,7 +1,4 @@
-from celery import Celery, group
-from celery.result import AsyncResult
-import requests
-import logging
+from celery import Celery
 
 app = Celery('scraper_tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
 
