@@ -1,0 +1,9 @@
+
+fastapi
+uvicorn
+pymongo
+httpx
+beautifulsoup4
+requests
+celery
+eventlet
