@@ -1,8 +1,9 @@
+from celery_worker import app
 from fastapi import FastAPI
 import requests
 from bs4 import BeautifulSoup
 
-app = FastAPI()
+app_scraper2 = FastAPI()
 
 def scrape_page(url):
     title = "Sancta Domenica"
@@ -15,6 +16,10 @@ def scrape_page(url):
     old_prices = soup.find_all("span", class_="price-wrapper", attrs={"data-price-type": "oldPrice"})
     
     old_prices_dict = {price.get('id'): price for price in old_prices}
+    
+    if not product_titles or not actual_prices:
+        print(f"Missing elements on page {url}")
+        return products
     
     for title, actual_price in zip(product_titles, actual_prices):
         product_name = title.get_text(strip=True)
@@ -32,22 +37,19 @@ def scrape_page(url):
     
     return products
 
-@app.get("/")
-async def scrape_all_pages():
-    base_url = "https://www.sancta-domenica.hr/racunala-i-periferija/prijenosna-racunala.html?gad_source=1&p={page}&product_list_order=bestsellers"
-    page_number = 0
+@app.task(name='scraper2.scrape2')
+def scrape2(start_page, end_page):
     all_products = []
     
-    while True:
-        url = base_url.format(page=page_number)
+    for page_number in range(start_page, end_page + 1):
+        url = f"https://www.sancta-domenica.hr/racunala-i-periferija/prijenosna-racunala.html?gad_source=1&p={page_number}&product_list_order=bestsellers"
         products = scrape_page(url)
         
         if not products:
+            print(f"No products found on page {page_number}. Stopping scraper.")
             break
         
         all_products.extend(products)
-        page_number += 1
     
-    return {"data": all_products}
-
-# Pokretanje: uvicorn scraper2:app --reload --port 8002
+    return all_products
+#celery -A scraper2 worker --loglevel=info -P eventlet -Q scraper2_queue

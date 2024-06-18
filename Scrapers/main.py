@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from scraper1 import scrape1
+from scraper2 import scrape2
 from celery.result import AsyncResult
 import json
 import logging
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 async def root():
     return {"message": "Service is running"}
 
-def create_scraper_tasks(start_page, end_page, num_workers=5):
+def create_scraper_tasks(scraper, start_page, end_page, num_workers=5):
     task_ids = []
     pages_per_worker = (end_page - start_page + 1) // num_workers
     for i in range(num_workers):
@@ -23,14 +24,19 @@ def create_scraper_tasks(start_page, end_page, num_workers=5):
         ep = sp + pages_per_worker - 1
         if ep > end_page:
             ep = end_page
-        task = scrape1.delay(sp, ep)
+        task = scraper.delay(sp, ep)
         logger.info(f"Task created for pages: {sp} to {ep} with ID: {task.id}")
         task_ids.append(task.id)
     return task_ids
 
-@app.post("/scrape/")
-async def start_scraping(start_page: int, end_page: int):
-    tasks = create_scraper_tasks(start_page, end_page)
+@app.post("/scrape/{scraper_name}")
+async def start_scraping(scraper_name: str, start_page: int, end_page: int):
+    if scraper_name == 'scraper1':
+        tasks = create_scraper_tasks(scrape1, start_page, end_page)
+    elif scraper_name == 'scraper2':
+        tasks = create_scraper_tasks(scrape2, start_page, end_page)
+    else:
+        raise HTTPException(status_code=404, detail="Scraper not found")
     return {"task_ids": tasks}
 
 @app.get("/results/{task_id}")
