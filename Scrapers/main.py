@@ -3,6 +3,7 @@ from scraper1 import scrape1
 from celery.result import AsyncResult
 import json
 import logging
+import os
 
 app = FastAPI()
 
@@ -14,12 +15,16 @@ logger = logging.getLogger(__name__)
 async def root():
     return {"message": "Service is running"}
 
-def create_scraper_tasks(start_page, end_page):
+def create_scraper_tasks(start_page, end_page, num_workers=5):
     task_ids = []
-    for page_number in range(start_page, end_page + 1):
-        url = f"https://www.links.hr/hr/discounted-products/informatika-01?pagenumber={page_number}"
-        task = scrape1.delay(url)
-        logger.info(f"Task created for URL: {url} with ID: {task.id}")
+    pages_per_worker = (end_page - start_page + 1) // num_workers
+    for i in range(num_workers):
+        sp = start_page + i * pages_per_worker
+        ep = sp + pages_per_worker - 1
+        if ep > end_page:
+            ep = end_page
+        task = scrape1.delay(sp, ep)
+        logger.info(f"Task created for pages: {sp} to {ep} with ID: {task.id}")
         task_ids.append(task.id)
     return task_ids
 
@@ -60,7 +65,7 @@ async def save_results(task_ids: str):
     for task_id in task_ids:
         task_result = AsyncResult(task_id)
         if task_result.state == 'SUCCESS':
-            all_products.extend(task_result.result)  # Directly extend with the result list
+            all_products.extend(task_result.result)
         else:
             logger.warning(f"Task {task_id} did not complete successfully. State: {task_result.state}")
     with open("scraped_data.json", "w") as f:
@@ -77,3 +82,13 @@ async def view_data():
     except FileNotFoundError:
         logger.error("No data found. Please run the scrapers first.")
         return {"error": "No data found. Please run the scrapers first."}
+
+@app.post("/clear_data/")
+async def clear_data():
+    if os.path.exists("scraped_data.json"):
+        os.remove("scraped_data.json")
+        logger.info("Previous data cleared successfully.")
+        return {"message": "Previous data cleared successfully."}
+    else:
+        logger.info("No data found to clear.")
+        return {"message": "No data found to clear."}

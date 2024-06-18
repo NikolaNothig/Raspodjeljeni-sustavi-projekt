@@ -38,25 +38,17 @@ def scrape_page(url):
     return products
 
 @app.task(name='scraper1.scrape1')
-def scrape1(url):
-    return scrape_page(url)
-
-@app_scraper1.get("/")
-async def scrape_all_pages():
-    base_url = "https://www.links.hr/hr/discounted-products/informatika-01"
-    page_number = 1
+def scrape1(start_page, end_page):
     all_products = []
     
-    while True:
-        url = f"{base_url}?pagenumber={page_number}"
+    for page_number in range(start_page, end_page + 1):
+        url = f"https://www.links.hr/hr/discounted-products/informatika-01?pagenumber={page_number}"
         products = scrape_page(url)
         
         if not products:
+            print(f"No products found on page {page_number}. Stopping scraper.")
             break
         
         all_products.extend(products)
-        page_number += 1
-    
-    return {"data": all_products}
-
+    return all_products
 #celery -A scraper1 worker --loglevel=info -P eventlet -Q scraper1_queue
