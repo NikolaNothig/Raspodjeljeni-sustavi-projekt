@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from scraper1 import scrape1
 from scraper2 import scrape2
 from scraper3 import scrape3
@@ -8,6 +10,7 @@ import pymongo
 import asyncio
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,8 +24,8 @@ db = mongoclient["Baza_artikala"]
 Artikli = db["Artikli"]
 
 @app.get("/")
-async def root():
-    return {"message": "Service is running"}
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 def create_scraper_tasks(scraper, start_page, end_page, num_workers=30):
     task_ids = []
@@ -51,21 +54,14 @@ async def wait_for_tasks(task_ids):
             logger.error(f"Task {task_id} failed with error: {task_result.result}")
     return all_products
 
-@app.post("/scrape/{scraper_name}")
-async def start_scraping(scraper_name: str, start_page: int, end_page: int, background_tasks: BackgroundTasks):
-    if scraper_name == 'scraper1':
-        tasks = create_scraper_tasks(scrape1, start_page, end_page)
-    elif scraper_name == 'scraper2':
-        tasks = create_scraper_tasks(scrape2, start_page, end_page)
-    elif scraper_name == 'scraper3':
-        tasks = create_scraper_tasks(scrape3, start_page, end_page)
-    else:
-        raise HTTPException(status_code=404, detail="Scraper not found")
-    
-    # Add task to wait for all scrapers to finish and save results
-    background_tasks.add_task(save_results_to_mongo, tasks)
-    
-    return {"task_ids": tasks}
+@app.post("/scrape_all")
+async def scrape_all(background_tasks: BackgroundTasks):
+    scraper1_tasks = create_scraper_tasks(scrape1, 1, 50)
+    scraper2_tasks = create_scraper_tasks(scrape2, 1, 50)
+    scraper3_tasks = create_scraper_tasks(scrape3, 1, 100)
+    all_tasks = scraper1_tasks + scraper2_tasks + scraper3_tasks
+    background_tasks.add_task(save_results_to_mongo, all_tasks)
+    return {"message": "Scrapers started"}
 
 async def save_results_to_mongo(task_ids):
     all_results = await wait_for_tasks(task_ids)
