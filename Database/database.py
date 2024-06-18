@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 app = FastAPI(default_response_class=JSONResponse)
 
 mongoclient = pymongo.MongoClient(
-    "mongodb+srv://nnothig:l6z1Ayak7Tp1dYsA@data.mfmvqb8.mongodb.net/"
+    "mongodb+srv://nnothig:12345@data.mfmvqb8.mongodb.net/?retryWrites=true&w=majority&appName=Data"
 )
 db = mongoclient["Baza_artikala"]  
 Artikli = db["Artikli"]  
