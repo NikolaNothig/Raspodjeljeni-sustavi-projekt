@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from scraper1 import scrape1
 from scraper2 import scrape2
+from scraper3 import scrape3
 from celery.result import AsyncResult
 import json
 import logging
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def root():
     return {"message": "Service is running"}
 
-def create_scraper_tasks(scraper, start_page, end_page, num_workers=5):
+def create_scraper_tasks(scraper, start_page, end_page, num_workers=30):
     task_ids = []
     pages_per_worker = (end_page - start_page + 1) // num_workers
     for i in range(num_workers):
@@ -35,6 +36,8 @@ async def start_scraping(scraper_name: str, start_page: int, end_page: int):
         tasks = create_scraper_tasks(scrape1, start_page, end_page)
     elif scraper_name == 'scraper2':
         tasks = create_scraper_tasks(scrape2, start_page, end_page)
+    elif scraper_name == 'scraper3':
+        tasks = create_scraper_tasks(scrape3, start_page, end_page)
     else:
         raise HTTPException(status_code=404, detail="Scraper not found")
     return {"task_ids": tasks}
