@@ -1,8 +1,9 @@
+from celery_worker import app
 from fastapi import FastAPI
 import requests
 from bs4 import BeautifulSoup
 
-app = FastAPI()
+app_scraper1 = FastAPI()
 
 def scrape_page(url):
     title = "Links"
@@ -14,20 +15,33 @@ def scrape_page(url):
     actual_prices = soup.find_all("span", class_="price actual-price")
     old_prices = soup.find_all("span", class_="price old-price")
     
-    for title, actual_price, old_price in zip(product_titles, actual_prices, old_prices):
-        product_name = title.get_text(strip=True)
-        new_price = actual_price.get_text(strip=True)
-        old_price_text = old_price.get_text(strip=True)
-        
-        products.append({
-            "name": product_name,
-            "new_price": new_price,
-            "old_price": old_price_text
-        })
+    if not product_titles or not actual_prices or not old_prices:
+        print(f"Missing elements on page {url}")
+        return products
+    
+    min_length = min(len(product_titles), len(actual_prices), len(old_prices))
+    
+    for i in range(min_length):
+        try:
+            product_name = product_titles[i].get_text(strip=True)
+            new_price = actual_prices[i].get_text(strip=True)
+            old_price_text = old_prices[i].get_text(strip=True)
+            
+            products.append({
+                "name": product_name,
+                "new_price": new_price,
+                "old_price": old_price_text
+            })
+        except IndexError:
+            print(f"Index error at page {url}, index {i}")
     
     return products
 
-@app.get("/")
+@app.task(name='scraper1.scrape1')
+def scrape1(url):
+    return scrape_page(url)
+
+@app_scraper1.get("/")
 async def scrape_all_pages():
     base_url = "https://www.links.hr/hr/discounted-products/informatika-01"
     page_number = 1
@@ -45,4 +59,4 @@ async def scrape_all_pages():
     
     return {"data": all_products}
 
-# Pokretanje: uvicorn scraper1:app --reload --port 8001
+#celery -A scraper1 worker --loglevel=info -P eventlet -Q scraper1_queue
