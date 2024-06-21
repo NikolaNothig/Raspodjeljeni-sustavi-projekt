@@ -26,7 +26,7 @@ Artikli = db["Artikli"]
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-def create_scraper_tasks(scraper, start_page, end_page, num_workers=30):
+def create_scraper_tasks(scraper, start_page, end_page, num_workers=10):
     task_ids = []
     pages_per_worker = (end_page - start_page + 1) // num_workers
     for i in range(num_workers):
